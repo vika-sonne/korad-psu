@@ -28,46 +28,62 @@ ProtocolClass::ProtocolClass(QObject *parent) :
 	std::cout << "START " << QDateTime::currentDateTime().toString(Qt::ISODate).toStdString() << std::endl;
 }
 
+void ProtocolClass::clear()
+{
+	_request = RequestEnum::None;
+	_answerExpectedLen = 0;
+	_rxBuff.clear();
+	if(_serialPort && _serialPort->isOpen())
+		_serialPort->clear();
+	if(_timerId >= 0)
+	{
+		killTimer(_timerId);
+		_timerId = -1;
+	}
+}
+
+void ProtocolClass::requestComplete()
+{
+	// answer RX complete
+	logData(_rxBuff);
+
+	auto r = _request;
+	auto buff = _rxBuff;
+	clear();
+	emit answer(r, buff);
+
+	if(r == RequestEnum::IDN)
+	{
+		// parse IDN answer for PSU model e.t.c.
+		_modelIsOk = _parseIdn(buff);
+		if(_modelIsOk)
+			emit modelDetected(buff);
+		else
+			// unknown model or broken connection
+			closeSerialPort();
+	}
+}
+
 void ProtocolClass::timerEvent(QTimerEvent *event)
 {
 	if(_timerId == event->timerId())
 	{
 		if(_serialPort && _serialPort->isOpen())
 		{
-			killTimer(_timerId);
-			_timerId = -1;
-			if(_rxBuff.isEmpty())
-			{
-				// RX the first byte // wait for answer RX complete
-				Log::msg(QString("T %0:%1").arg(__LINE__).arg(__FILE__));
-				_timerId = startTimer(DEFAULT_ANSWER_INTERBYTE_TIMEOUT);
-			}
+			if(_request == RequestEnum::IDN)
+				// since, IDN answer length is not known - use timeout to RX the answer
+				requestComplete();
 			else
 			{
-				// answer RX complete
-				logData(_rxBuff);
-
-				auto r = _request;
-				auto buff = _rxBuff;
-				_request = RequestEnum::None;
-				_rxBuff.clear();
-				_serialPort->clear();
-				emit answer(r, buff);
-
-				if(r == RequestEnum::IDN)
-				{
-					_modelIsOk = _parseIdn(buff);
-					if(_modelIsOk)
-						emit modelDetected(buff);
-				}
+				// request timeout detected
+				Log::msg("Timeout");
+				clear();
+				emit answerTimeout();
 			}
 		}
 		else
-		{
 			// serial port was closed
-			killTimer(_timerId);
-			_timerId = -1;
-		}
+			clear();
 	}
 	else
 		SerialPortClass::timerEvent(event);
@@ -76,34 +92,27 @@ void ProtocolClass::timerEvent(QTimerEvent *event)
 void ProtocolClass::portOpened()
 {
 	_modelIsOk = false;
-	_rxBuff.clear();
-	_request = RequestEnum::None;
-	if(_timerId >= 0)
-	{
-		killTimer(_timerId);
-		_timerId = -1;
-	}
+	clear();
 
 	QThread::msleep(500);
-
 	request(RequestEnum::IDN);
 }
 
 void ProtocolClass::portClosed()
 {
 	_modelIsOk = false;
-	_rxBuff.clear();
-	_request = RequestEnum::None;
-	if(_timerId >= 0)
-	{
-		killTimer(_timerId);
-		_timerId = -1;
-	}
+	clear();
 }
 
 void ProtocolClass::dataArrived(QByteArray data)
 {
 	_rxBuff += data;
+
+	// check RX buffer for expected answer
+	if(_request != RequestEnum::IDN)
+		if(_rxBuff.length() >= _answerExpectedLen)
+			// answer RX complete
+			requestComplete();
 }
 
 void ProtocolClass::request(RequestEnum r)
@@ -120,45 +129,58 @@ void ProtocolClass::request(RequestEnum r, float value)
 	{
 		switch(r)
 		{
-			case RequestEnum::IDN: sendRequest("*IDN?", r, true); break;
-			case RequestEnum::STATUSQ: sendRequest("STATUS?", r, true); break;
-			case RequestEnum::VSET1Q: sendRequest("VSET1?", r, true); break;
+			case RequestEnum::IDN: sendRequest("*IDN?", r, 1024); break;
+			case RequestEnum::STATUSQ: sendRequest("STATUS?", r, 1); break;
+			case RequestEnum::VSET1Q: sendRequest("VSET1?", r, 5); break;
 			case RequestEnum::VSET1: sendRequest(QString("VSET1:%0").arg(value).toLatin1(), r); break;
-			case RequestEnum::VOUT1Q: sendRequest("VOUT1?", r, true); break;
-			case RequestEnum::ISET1Q: sendRequest("ISET1?", r, true); break;
-			case RequestEnum::IOUT1Q: sendRequest("IOUT1?", r, true); break;
+			case RequestEnum::VOUT1Q: sendRequest("VOUT1?", r, 5); break;
+			case RequestEnum::ISET1Q: sendRequest("ISET1?", r, 5); break;
+			case RequestEnum::IOUT1Q: sendRequest("IOUT1?", r, 5); break;
 			default:
 				return;
 		}
 	}
 }
 
-void ProtocolClass::sendRequest(QByteArray data, RequestEnum requested, bool waitAnswer)
+void ProtocolClass::sendRequest(QByteArray data, RequestEnum r, int answerExpectedLen)
 {
 	if(_serialPort && _serialPort->isOpen())
 	{
 		logData(data, true);
+		// flush serial port data with timeout
+		if(_serialPort && _serialPort->isOpen())
+			if(!_serialPort->waitForBytesWritten(DEFAULT_REQUEST_SEND_TIMEOUT))
+				Log::msg("Request TX timeout");
 		_rxBuff.clear();
-		if(waitAnswer)
+		// send request
+		if(answerExpectedLen > 0)
 		{
-			// wait for answer // start to RX with timeout
-			_request = requested;
-			_serialPort->clear();
-			_serialPort->write(data);
+			// send request & wait for answer with timeout
+			_request = r;
+			_answerExpectedLen = answerExpectedLen;
+			if(_serialPort && _serialPort->isOpen())
+			{
+				_serialPort->clear();
+				_serialPort->write(data);
+			}
+			// wait for answer with timeout
 			if(_timerId >= 0)
 				killTimer(_timerId);
 			Log::msg(QString("T %0:%1").arg(__LINE__).arg(__FILE__));
-			_timerId = startTimer(requested == RequestEnum::IDN ?  DEFAULT_IDN_ANSWER_TIMEOUT : DEFAULT_ANSWER_TIMEOUT);
+			_timerId = startTimer(r == RequestEnum::IDN ? DEFAULT_IDN_ANSWER_TIMEOUT : DEFAULT_ANSWER_TIMEOUT);
 		}
 		else
 		{
-			// ready for next request
-			if(!_serialPort->waitForBytesWritten(DEFAULT_REQUEST_SEND_TIMEOUT))
-				Log::msg("Request TX timeout");
+			// send request
 			_request = RequestEnum::None;
+			_answerExpectedLen = 0;
 			if(_serialPort && _serialPort->isOpen())
+			{
 				_serialPort->clear();
-			emit answer(requested, QByteArray());
+				_serialPort->write(data);
+			}
+			// ready for next request
+			emit answer(r, QByteArray());
 		}
 	}
 	else

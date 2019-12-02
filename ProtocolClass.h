@@ -49,20 +49,23 @@ public slots:
 signals:
 	void answer(ProtocolClass::RequestEnum request, QByteArray value);
 	void answerTimeout();
+
+	//! IDN answer
+	//! @param model	Answer: model, version, S/N, example: "KORAD KA3005P V4.2 SN:########", where # - digit
 	void modelDetected(QString model);
 
 protected:
 	static constexpr int DEFAULT_IDN_ANSWER_TIMEOUT = 250; //!< Answer's first byte timeout, ms
 	static constexpr int DEFAULT_ANSWER_TIMEOUT = 75; //!< Answer's first byte timeout, ms
-	static constexpr int DEFAULT_ANSWER_INTERBYTE_TIMEOUT = 75; //!< Answer RX complete, ms
 	static constexpr int DEFAULT_REQUEST_SEND_TIMEOUT = 100; //!< Request TX timeout, ms
 
-	bool _modelIsOk = false;
+	bool _modelIsOk = false; //!< IDN answer parsing result
 
-	RequestEnum _request = RequestEnum::None;
-	QByteArray _rxBuff;
+	RequestEnum _request = RequestEnum::None; //!< Request
+	QByteArray _rxBuff; //!< Answer buffer
+	int _timerId = -1; //!< Answer timeout timer ID: -1 - timer not launched; 0..
+	int _answerExpectedLen = 0; //!< Answer expected length, bytes: 0..
 
-	int _timerId = -1;
 	void timerEvent(QTimerEvent *event) override;
 
 	void portOpened() override;
@@ -70,7 +73,13 @@ protected:
 
 	void dataArrived(QByteArray data) override;
 
-	void sendRequest(QByteArray data, RequestEnum requested, bool waitAnswer=false);
+	void sendRequest(QByteArray data, RequestEnum r, int answerExpectedLen=0);
+
+	//! Completes answer recieving
+	virtual void requestComplete();
+
+	//! Completes answer recieving
+	virtual void clear();
 };
 
 #endif // ProtocolClass_H
