@@ -258,25 +258,36 @@ bool SerialPortClass::openSerialPort(SerialPortClass::PortAndVidPid portAndVidPi
 	return true;
 }
 
-void SerialPortClass::closeSerialPort()
+void SerialPortClass::closeSerialPort(bool emitSignals)
 {
-	auto portName = _serialPort->portName();
-	// filter
-	_lastError = _serialPort->error();
-	// log
-	if(_serialPort->error() == QSerialPort::NoError)
-		Log::error(QString("closed ") + qPrintable(portName));
-	else
-		Log::error(QString("closed %0: (%1) %2").arg(portName)
-			.arg(_serialPort->error()).arg(_serialPort->errorString()));
-	// close port
-	if(_serialPort->isOpen())
-		_serialPort->close();
-	delete _serialPort;
-	_serialPort = nullptr;
+	if(_serialPort)
+	{
+		auto portName = _serialPort->portName();
+		// filter
+		_lastError = _serialPort->error();
+		// log
+		if(_serialPort->error() == QSerialPort::NoError)
+			Log::error(QString("closed ") + qPrintable(portName));
+		else
+			Log::error(QString("closed %0: (%1) %2").arg(portName)
+				.arg(_serialPort->error()).arg(_serialPort->errorString()));
+		// close port
+		if(_serialPort->isOpen())
+			_serialPort->close();
+		delete _serialPort;
+		_serialPort = nullptr;
 
-	portClosed();
-	emit serialPortClosed(portName);
+		if(emitSignals)
+			emit serialPortClosed(portName);
+	}
+
+	if(emitSignals)
+		portClosed();
+}
+
+void SerialPortClass::closeSerialPortAndReconnect()
+{
+	closeSerialPort(true);
 
 	// start reconnect timer // start to search port in the system by timer
 	Log::msg(QString("T %0:%1").arg(__LINE__).arg(__FILE__));
@@ -293,7 +304,7 @@ void SerialPortClass::_serialPort_readyRead()
 	{
 		Log::msg("SERR2");
 		if(_serialPort->error() != QSerialPort::NoError)
-			closeSerialPort();
+			closeSerialPortAndReconnect();
 	}
 	else
 	{
@@ -305,7 +316,7 @@ void SerialPortClass::_serialPort_errorOccurred(QSerialPort::SerialPortError err
 {
 	Log::msg(QString("SERR: %0").arg(error));
 	if(error != QSerialPort::NoError)
-		closeSerialPort();
+		closeSerialPortAndReconnect();
 }
 
 void SerialPortClass::logData(QByteArray data, bool send)

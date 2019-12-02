@@ -19,7 +19,8 @@ public slots:
 	//! Opens com port
 	//! @param portName example: ttyACM0
 	bool openSerialPort(PortAndVidPid portAndVidPid);
-	void closeSerialPort();
+	void closeSerialPort(bool emitSignals);
+	void closeSerialPortAndReconnect();
 
 signals:
 	void serialPortOpened(QString portName);

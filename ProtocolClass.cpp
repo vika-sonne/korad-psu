@@ -1,14 +1,9 @@
-#include <iostream>
-#include <math.h>
-#include <QDateTime>
 #include <QSerialPortInfo>
-#include <QVector>
-#include <QStringRef>
+#include <QThread>
 #include <QCommandLineParser>
 #include "Log.h"
 #include "ProtocolClass.h"
 
-#include <QThread>
 
 bool _parseIdn(QByteArray answer)
 {
@@ -25,7 +20,6 @@ ProtocolClass::ProtocolClass(QObject *parent) :
 	SerialPortClass({ VidPid(0x0416, 0x5011) }, parent)
 {
 	qRegisterMetaType<ProtocolClass::RequestEnum>();
-	std::cout << "START " << QDateTime::currentDateTime().toString(Qt::ISODate).toStdString() << std::endl;
 }
 
 void ProtocolClass::clear()
@@ -60,7 +54,7 @@ void ProtocolClass::requestComplete()
 			emit modelDetected(buff);
 		else
 			// unknown model or broken connection
-			closeSerialPort();
+			closeSerialPortAndReconnect();
 	}
 }
 
@@ -79,6 +73,7 @@ void ProtocolClass::timerEvent(QTimerEvent *event)
 				Log::msg("Timeout");
 				clear();
 				emit answerTimeout();
+				closeSerialPortAndReconnect();
 			}
 		}
 		else
@@ -94,7 +89,7 @@ void ProtocolClass::portOpened()
 	_modelIsOk = false;
 	clear();
 
-	QThread::msleep(500);
+	QThread::msleep(DEFAULT_OPEN_PORT_DELAY);
 	request(RequestEnum::IDN);
 }
 
@@ -147,10 +142,9 @@ void ProtocolClass::sendRequest(QByteArray data, RequestEnum r, int answerExpect
 	if(_serialPort && _serialPort->isOpen())
 	{
 		logData(data, true);
-		// flush serial port data with timeout
+		// flush serial port data
 		if(_serialPort && _serialPort->isOpen())
-			if(!_serialPort->waitForBytesWritten(DEFAULT_REQUEST_SEND_TIMEOUT))
-				Log::msg("Request TX timeout");
+			_serialPort->flush();
 		_rxBuff.clear();
 		// send request
 		if(answerExpectedLen > 0)
@@ -187,4 +181,12 @@ void ProtocolClass::sendRequest(QByteArray data, RequestEnum r, int answerExpect
 	{
 		Log::msg("Try write to closed port");
 	}
+}
+
+void ProtocolClass::stop()
+{
+	// stop protocol
+	clear();
+	// stop serial port
+	closeSerialPort(false);
 }

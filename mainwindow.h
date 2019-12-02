@@ -19,12 +19,14 @@ public:
 
 signals:
 	void request(ProtocolClass::RequestEnum r);
+	void stop();
 
 protected slots:
 	void _protocol_serialPortOpened(QString portName);
 	void _protocol_serialPortClosed(QString portName);
 	void _protocol_modelDetected(QString model);
 	void _protocol_answer(ProtocolClass::RequestEnum r, QByteArray value);
+	void _protocol_answerTimeout();
 
 protected:
 	ProtocolClass _protocol;
