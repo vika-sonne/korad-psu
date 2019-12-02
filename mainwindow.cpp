@@ -22,9 +22,12 @@ MainWindow::MainWindow(QWidget *parent) :
 	connect(&_protocol, SIGNAL(serialPortOpened(QString)), SLOT(_protocol_serialPortOpened(QString)));
 	connect(&_protocol, SIGNAL(serialPortClosed(QString)), SLOT(_protocol_serialPortClosed(QString)));
 	connect(&_protocol, SIGNAL(modelDetected(QString)), SLOT(_protocol_modelDetected(QString)));
+	connect(&_protocol, SIGNAL(answerTimeout()), SLOT(_protocol_answerTimeout()));
 	connect(&_protocol, SIGNAL(answer(ProtocolClass::RequestEnum,QByteArray)),
 		SLOT(_protocol_answer(ProtocolClass::RequestEnum,QByteArray)));
+
 	connect(this, SIGNAL(request(ProtocolClass::RequestEnum)), &_protocol, SLOT(request(ProtocolClass::RequestEnum)));
+	connect(this, SIGNAL(stop()), &_protocol, SLOT(stop()));
 }
 
 MainWindow::~MainWindow()
@@ -32,8 +35,9 @@ MainWindow::~MainWindow()
 	delete ui;
 
 	Log::msg("Wait for serial thread...");
+	emit stop();
 	_protocolThread.quit();
-	_protocolThread.wait();
+	_protocolThread.wait(500);
 	Log::msg("Done");
 }
 
@@ -84,4 +88,8 @@ void MainWindow::_protocol_answer(ProtocolClass::RequestEnum r, QByteArray value
 			break;
 		default: break;
 	}
+}
+
+void MainWindow::_protocol_answerTimeout()
+{
 }

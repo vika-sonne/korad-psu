@@ -46,6 +46,9 @@ public slots:
 	void request(ProtocolClass::RequestEnum r);
 	void request(ProtocolClass::RequestEnum r, float value);
 
+	//! Stops & cleanups the protocol state & timers
+	void stop();
+
 signals:
 	void answer(ProtocolClass::RequestEnum request, QByteArray value);
 	void answerTimeout();
@@ -55,9 +58,9 @@ signals:
 	void modelDetected(QString model);
 
 protected:
-	static constexpr int DEFAULT_IDN_ANSWER_TIMEOUT = 250; //!< Answer's first byte timeout, ms
-	static constexpr int DEFAULT_ANSWER_TIMEOUT = 75; //!< Answer's first byte timeout, ms
-	static constexpr int DEFAULT_REQUEST_SEND_TIMEOUT = 100; //!< Request TX timeout, ms
+	static constexpr int DEFAULT_IDN_ANSWER_TIMEOUT = 250; //!< Answer timeout, ms
+	static constexpr int DEFAULT_ANSWER_TIMEOUT = 150; //!< Answer timeout, ms
+	static constexpr int DEFAULT_OPEN_PORT_DELAY = 500; //!< Delay after port opened, ms
 
 	bool _modelIsOk = false; //!< IDN answer parsing result
 
