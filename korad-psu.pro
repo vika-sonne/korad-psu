@@ -12,6 +12,7 @@ TARGET = korad-psu
 TEMPLATE = app
 
 QT += serialport
+QT += printsupport
 
 # The following define makes your compiler emit warnings if you use
 # any feature of Qt which has been marked as deprecated (the exact warnings
@@ -26,19 +27,21 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 
 SOURCES += \
-	main.cpp \
-	mainwindow.cpp \
-	ProtocolClass.cpp \
-	SerialPortClass.cpp
+	src/main.cpp \
+	src/mainwindow.cpp \
+	src/ProtocolClass.cpp \
+	src/SerialPortClass.cpp \
+	src/qcustomplot.cpp
 
 HEADERS += \
-	mainwindow.h \
-	ProtocolClass.h \
-	SerialPortClass.h \
-	Log.h
+	src/mainwindow.h \
+	src/ProtocolClass.h \
+	src/SerialPortClass.h \
+	src/Log.h \
+	src/qcustomplot.h
 
 FORMS += \
-	mainwindow.ui
+	src/mainwindow.ui
 
 RESOURCES += \
-	resources.qrc
+	src/resources.qrc

@@ -28,6 +28,39 @@ MainWindow::MainWindow(QWidget *parent) :
 
 	connect(this, SIGNAL(request(ProtocolClass::RequestEnum)), &_protocol, SLOT(request(ProtocolClass::RequestEnum)));
 	connect(this, SIGNAL(stop()), &_protocol, SLOT(stop()));
+
+	// setup the graph
+	{
+		auto plot = ui->oGraph;
+		// add graphs
+		{
+			auto graph = plot->addGraph(plot->xAxis, plot->yAxis);
+			graph->setPen(_graphParameters.u());
+			graph->setName("V");
+		}
+		{
+			auto graph = plot->addGraph(plot->xAxis, plot->yAxis2);
+			graph->setPen(_graphParameters.i());
+			graph->setName("A");
+		}
+		// add time axies
+		{
+			QSharedPointer<QCPAxisTickerFixed> timeTicker(new QCPAxisTickerFixed);
+//			timeTicker->setTimeFormat("%h:%m:%s");
+			timeTicker->setTickStep(_graphParameters.timeTick());
+			plot->xAxis->setTicker(timeTicker);
+			plot->xAxis->setTicks(false);
+		}
+		plot->yAxis->setRange(0, 31.5);
+		plot->yAxis->setLabel("V");
+		plot->yAxis->setVisible(true);
+		plot->yAxis->setTickLabelColor(_graphParameters.u().color());
+
+		plot->yAxis2->setRange(0, 3.15);
+		plot->yAxis2->setLabel("A");
+		plot->yAxis2->setVisible(true);
+		plot->yAxis2->setTickLabelColor(_graphParameters.i().color());
+	}
 }
 
 MainWindow::~MainWindow()
@@ -61,6 +94,8 @@ void MainWindow::_protocol_modelDetected(QString model)
 {
 	ui->oStatusBar->showMessage(QString("Port: ") + _portName + "; Model: " + model);
 
+	_time = QTime::currentTime();
+
 	// start the polling cycle
 	emit request(ProtocolClass::RequestEnum::VSET1Q);
 }
@@ -68,6 +103,8 @@ void MainWindow::_protocol_modelDetected(QString model)
 void MainWindow::_protocol_answer(ProtocolClass::RequestEnum r, QByteArray value)
 {
 //	Log::msg(QString("%0 %1").arg((int)request).arg(QString(value)));
+	double key = _time.elapsed() / 1000.0; // seconds
+	auto plot = ui->oGraph;
 	switch(r)
 	{
 		case ProtocolClass::RequestEnum::VSET1Q:
@@ -76,14 +113,20 @@ void MainWindow::_protocol_answer(ProtocolClass::RequestEnum r, QByteArray value
 			break;
 		case ProtocolClass::RequestEnum::ISET1Q:
 			ui->oIset1->setText(value);
+			plot->xAxis->setRange(key, _graphParameters.timeDept(), Qt::AlignRight);
+			plot->replot();
 			emit request(ProtocolClass::RequestEnum::VOUT1Q);
 			break;
 		case ProtocolClass::RequestEnum::VOUT1Q:
 			ui->oVout->setText(value);
+			plot->graph(0)->addData(key, QString(value).toFloat());
+			plot->xAxis->setRange(key, _graphParameters.timeDept(), Qt::AlignRight);
+			plot->replot();
 			emit request(ProtocolClass::RequestEnum::IOUT1Q);
 			break;
 		case ProtocolClass::RequestEnum::IOUT1Q:
 			ui->oIout->setText(value);
+			plot->graph(1)->addData(key, QString(value).toFloat());
 			emit request(ProtocolClass::RequestEnum::VSET1Q);
 			break;
 		default: break;

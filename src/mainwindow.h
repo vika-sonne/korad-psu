@@ -3,6 +3,8 @@
 
 #include <QMainWindow>
 #include <QThread>
+#include <QPen>
+#include <QTime>
 #include "ProtocolClass.h"
 
 namespace Ui {
@@ -12,6 +14,16 @@ namespace Ui {
 class MainWindow : public QMainWindow
 {
 	Q_OBJECT
+
+protected:
+	class GraphParametersClass
+	{
+	public:
+		QPen u() const { return QPen(QBrush(Qt::blue), 2); }
+		QPen i() const { return QPen(QBrush(Qt::red), 2); }
+		uint timeDept() const { return 60; } // seconds
+		uint timeTick() const { return 10; } // seconds
+	};
 
 public:
 	explicit MainWindow(QWidget *parent = 0);
@@ -32,6 +44,8 @@ protected:
 	ProtocolClass _protocol;
 	QThread _protocolThread;
 	QString _portName;
+	GraphParametersClass _graphParameters;
+	QTime _time;
 
 private:
 	Ui::MainWindow *ui;
