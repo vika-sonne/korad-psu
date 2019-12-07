@@ -7,7 +7,7 @@
 #include <QThread>
 
 MainWindow::MainWindow(QWidget *parent) :
-	QMainWindow(parent), _protocol(),
+	QMainWindow(parent), _protocol(), _u_autoscale(30.), _i_autoscale(3.),
 	ui(new Ui::MainWindow)
 {
 	ui->setupUi(this);
@@ -51,12 +51,12 @@ MainWindow::MainWindow(QWidget *parent) :
 			plot->xAxis->setTicker(timeTicker);
 			plot->xAxis->setTicks(false);
 		}
-		plot->yAxis->setRange(0, 31.5);
+		plot->yAxis->setRange(0, _u_autoscale.max * 1.05);
 		plot->yAxis->setLabel("V");
 		plot->yAxis->setVisible(true);
 		plot->yAxis->setTickLabelColor(_graphParameters.u().color());
 
-		plot->yAxis2->setRange(0, 3.15);
+		plot->yAxis2->setRange(0, _i_autoscale.max * 1.05);
 		plot->yAxis2->setLabel("A");
 		plot->yAxis2->setVisible(true);
 		plot->yAxis2->setTickLabelColor(_graphParameters.i().color());
@@ -105,6 +105,8 @@ void MainWindow::_protocol_answer(ProtocolClass::RequestEnum r, QByteArray value
 //	Log::msg(QString("%0 %1").arg((int)request).arg(QString(value)));
 	double key = _time.elapsed() / 1000.0; // seconds
 	auto plot = ui->oGraph;
+//	Log::msg(value);
+	auto v = QString(value).toFloat();
 	switch(r)
 	{
 		case ProtocolClass::RequestEnum::VSET1Q:
@@ -113,13 +115,13 @@ void MainWindow::_protocol_answer(ProtocolClass::RequestEnum r, QByteArray value
 			break;
 		case ProtocolClass::RequestEnum::ISET1Q:
 			ui->oIset1->setText(value);
-			plot->xAxis->setRange(key, _graphParameters.timeDept(), Qt::AlignRight);
-			plot->replot();
 			emit request(ProtocolClass::RequestEnum::VOUT1Q);
 			break;
 		case ProtocolClass::RequestEnum::VOUT1Q:
 			ui->oVout->setText(value);
-			plot->graph(0)->addData(key, QString(value).toFloat());
+			plot->graph(0)->addData(key, v);
+			if(_u_autoscale.scaleMax(v))
+				plot->yAxis->setRange(0, _u_autoscale.maxValue * 1.05);
 			plot->xAxis->setRange(key, _graphParameters.timeDept(), Qt::AlignRight);
 			plot->replot();
 			emit request(ProtocolClass::RequestEnum::IOUT1Q);
@@ -127,6 +129,10 @@ void MainWindow::_protocol_answer(ProtocolClass::RequestEnum r, QByteArray value
 		case ProtocolClass::RequestEnum::IOUT1Q:
 			ui->oIout->setText(value);
 			plot->graph(1)->addData(key, QString(value).toFloat());
+			if(_i_autoscale.scaleMax(v))
+				plot->yAxis2->setRange(0, _i_autoscale.maxValue * 1.05);
+			plot->xAxis->setRange(key, _graphParameters.timeDept(), Qt::AlignRight);
+			plot->replot();
 			emit request(ProtocolClass::RequestEnum::VSET1Q);
 			break;
 		default: break;

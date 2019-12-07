@@ -160,7 +160,7 @@ void ProtocolClass::sendRequest(QByteArray data, RequestEnum r, int answerExpect
 			// wait for answer with timeout
 			if(_timerId >= 0)
 				killTimer(_timerId);
-			Log::msg(QString("T %0:%1").arg(__LINE__).arg(__FILE__));
+//			Log::msg(QString("T %0:%1").arg(__LINE__).arg(__FILE__));
 			_timerId = startTimer(r == RequestEnum::IDN ? DEFAULT_IDN_ANSWER_TIMEOUT : DEFAULT_ANSWER_TIMEOUT);
 		}
 		else

@@ -1,6 +1,8 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include <float.h>
+#include <math.h>
 #include <QMainWindow>
 #include <QThread>
 #include <QPen>
@@ -25,6 +27,27 @@ protected:
 		uint timeTick() const { return 10; } // seconds
 	};
 
+	class AutoscaleClass
+	{
+	public:
+		AutoscaleClass(float max) : max(max), maxValue(0.) {}
+		float max; //!< Maximum value to scale down
+		float maxValue; //!< Current maximum value
+		bool scaleMax(float value)
+		{
+			if(value <= DBL_EPSILON)
+				return false;
+			float newMax = 2 * (int)log2(max / value);
+			newMax = newMax > DBL_EPSILON ? max / newMax : max;
+			if(fabs(newMax - maxValue) > max * 0.001)
+			{
+				maxValue = newMax;
+				return true;
+			}
+			return false;
+		}
+	};
+
 public:
 	explicit MainWindow(QWidget *parent = 0);
 	~MainWindow();
@@ -46,6 +69,8 @@ protected:
 	QString _portName;
 	GraphParametersClass _graphParameters;
 	QTime _time;
+	AutoscaleClass _u_autoscale;
+	AutoscaleClass _i_autoscale;
 
 private:
 	Ui::MainWindow *ui;
