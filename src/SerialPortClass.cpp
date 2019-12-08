@@ -136,7 +136,7 @@ SerialPortClass::SerialPortClass(QVector<VidPid> vidPid, QObject *parent)
 void SerialPortClass::processReconnectTimer()
 {
 	// com port not found
-	Log::msg(QString("T %0:%1").arg(__LINE__).arg(__FILE__));
+//	Log::msg(QString("T %0:%1").arg(__LINE__).arg(__FILE__));
 	switch(_reconnectAttemptsCount)
 	{
 		case 0:
@@ -290,7 +290,7 @@ void SerialPortClass::closeSerialPortAndReconnect()
 	closeSerialPort(true);
 
 	// start reconnect timer // start to search port in the system by timer
-	Log::msg(QString("T %0:%1").arg(__LINE__).arg(__FILE__));
+//	Log::msg(QString("T %0:%1").arg(__LINE__).arg(__FILE__));
 	if(_reconnectTimerId >= 0)
 		killTimer(_reconnectTimerId);
 	_reconnectAttemptsCount = 0;

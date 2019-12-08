@@ -7,7 +7,7 @@
 #include <QThread>
 
 MainWindow::MainWindow(QWidget *parent) :
-	QMainWindow(parent), _protocol(), _u_autoscale(30.), _i_autoscale(3.),
+	QMainWindow(parent), _protocol(), _graphParameters(6), _u_autoscale(30.), _i_autoscale(3.),
 	ui(new Ui::MainWindow)
 {
 	ui->setupUi(this);
@@ -29,9 +29,12 @@ MainWindow::MainWindow(QWidget *parent) :
 	connect(this, SIGNAL(request(ProtocolClass::RequestEnum)), &_protocol, SLOT(request(ProtocolClass::RequestEnum)));
 	connect(this, SIGNAL(stop()), &_protocol, SLOT(stop()));
 
+	_time = QTime::currentTime();
+
 	// setup the graph
 	{
 		auto plot = ui->oGraph;
+//		plot->setBackground(QBrush(Qt::darkGray));
 		// add graphs
 		{
 			auto graph = plot->addGraph(plot->xAxis, plot->yAxis);
@@ -52,11 +55,12 @@ MainWindow::MainWindow(QWidget *parent) :
 			plot->xAxis->setTicks(false);
 		}
 		plot->yAxis->setRange(0, _u_autoscale.max * 1.05);
-		plot->yAxis->setLabel("V");
+		plot->yAxis->ticker()->setTickCount(_graphParameters.ticksCount);
 		plot->yAxis->setVisible(true);
 		plot->yAxis->setTickLabelColor(_graphParameters.u().color());
 
 		plot->yAxis2->setRange(0, _i_autoscale.max * 1.05);
+		plot->yAxis2->ticker()->setTickCount(_graphParameters.ticksCount);
 		plot->yAxis2->setLabel("A");
 		plot->yAxis2->setVisible(true);
 		plot->yAxis2->setTickLabelColor(_graphParameters.i().color());
@@ -94,8 +98,6 @@ void MainWindow::_protocol_modelDetected(QString model)
 {
 	ui->oStatusBar->showMessage(QString("Port: ") + _portName + "; Model: " + model);
 
-	_time = QTime::currentTime();
-
 	// start the polling cycle
 	emit request(ProtocolClass::RequestEnum::VSET1Q);
 }
@@ -105,7 +107,6 @@ void MainWindow::_protocol_answer(ProtocolClass::RequestEnum r, QByteArray value
 //	Log::msg(QString("%0 %1").arg((int)request).arg(QString(value)));
 	double key = _time.elapsed() / 1000.0; // seconds
 	auto plot = ui->oGraph;
-//	Log::msg(value);
 	auto v = QString(value).toFloat();
 	switch(r)
 	{
@@ -118,6 +119,7 @@ void MainWindow::_protocol_answer(ProtocolClass::RequestEnum r, QByteArray value
 			emit request(ProtocolClass::RequestEnum::VOUT1Q);
 			break;
 		case ProtocolClass::RequestEnum::VOUT1Q:
+			Log::msg(value);
 			ui->oVout->setText(value);
 			plot->graph(0)->addData(key, v);
 			if(_u_autoscale.scaleMax(v))

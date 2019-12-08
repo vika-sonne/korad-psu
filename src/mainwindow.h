@@ -21,6 +21,8 @@ protected:
 	class GraphParametersClass
 	{
 	public:
+		GraphParametersClass(uint ticksCount) : ticksCount(ticksCount) {}
+		uint ticksCount; //!< ticks count of u & i
 		QPen u() const { return QPen(QBrush(Qt::blue), 2); }
 		QPen i() const { return QPen(QBrush(Qt::red), 2); }
 		uint timeDept() const { return 60; } // seconds
@@ -37,8 +39,8 @@ protected:
 		{
 			if(value <= DBL_EPSILON)
 				return false;
-			float newMax = 2 * (int)log2(max / value);
-			newMax = newMax > DBL_EPSILON ? max / newMax : max;
+			float newMax = floor(log2(max / value));
+			newMax = newMax > DBL_EPSILON ? max / pow(2, newMax) : max;
 			if(fabs(newMax - maxValue) > max * 0.001)
 			{
 				maxValue = newMax;
