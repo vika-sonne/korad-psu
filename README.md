@@ -1,6 +1,8 @@
 Korad PSU
 =========
 
+[![GitHub release](https://img.shields.io/github/release/vika-sonne/korad-psu.svg)](https://github.com/vika-sonne/sspd-qt/releases/latest)&nbsp;&nbsp;&nbsp;&nbsp;![](https://img.shields.io/badge/platform-linux--64%20|%20win--64-success)
+
 **Korad Power Source Unit (programmable version) Monitor Utility.**
 
 Intended mainly for electronic device developers.
